@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -28,8 +29,11 @@ func main() {
 }
 
 func handleConn(conn net.Conn) {
+	defer conn.Close()
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
-		conn.Write([]byte("+PONG\r\n"))
+		if strings.ToUpper(scanner.Text()) == "PING" {
+			conn.Write([]byte("+PONG\r\n"))
+		}
 	}
 }
