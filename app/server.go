@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+// Simplest of k/v stores
+var cache map[string]string = map[string]string{}
+
 func main() {
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
@@ -31,8 +34,9 @@ func main() {
 // area for improvement, but should work for our purposes.
 func processData(scanner *bufio.Scanner) interface{} {
 	if !scanner.Scan() {
-		// We didn't receive any data.
-		fmt.Println("[processData] Returning nil due to no data on buffer: ", scanner.Err())
+		if scanner.Err() != nil {
+			fmt.Println("[processData] Scan() encountered error: ", scanner.Err())
+		}
 		return nil
 	}
 
@@ -102,6 +106,25 @@ func handleConn(conn net.Conn) {
 			// Echo back message in first arg as simple string
 			if isCorrectArgLength(1) {
 				conn.Write([]byte(fmt.Sprintf("+%s\r\n", args[0])))
+			}
+		case "SET":
+			// Set key=val
+			if isCorrectArgLength(2) {
+				// We're just assuming these type casts work
+				key := args[0].(string)
+				cache[key] = args[1].(string)
+				conn.Write([]byte("+OK\r\n"))
+			}
+		case "GET":
+			// GET key
+			if isCorrectArgLength(1) {
+				key := args[0].(string)
+				val, ok := cache[key]
+				if !ok {
+					conn.Write([]byte("$-1\r\n"))
+				} else {
+					conn.Write([]byte(fmt.Sprintf("+%s\r\n", val)))
+				}
 			}
 		default:
 			fmt.Printf("Unexpected command: '%s' with args: '%v'\n", cmd, args)
