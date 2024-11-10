@@ -7,10 +7,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Simplest of k/v stores
-var cache map[string]string = map[string]string{}
+var cache map[string]cacheVal = map[string]cacheVal{}
+
+type cacheVal struct {
+	value  string
+	expiry time.Time
+}
 
 func main() {
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
@@ -79,6 +85,18 @@ func handleConn(conn net.Conn) {
 	defer conn.Close()
 	scanner := bufio.NewScanner(conn)
 
+	writeString := func(str string) {
+		conn.Write([]byte(fmt.Sprintf("+%s\r\n", str)))
+	}
+
+	writeNullString := func() {
+		conn.Write([]byte("$-1\r\n"))
+	}
+
+	writeErr := func(errMsg string) {
+		conn.Write([]byte(fmt.Sprintf("-ERR %s\r\n", errMsg)))
+	}
+
 	// The data we receive is a command in the form of an array, where the first
 	// element is the command and the rest are optional args.
 	for {
@@ -92,7 +110,7 @@ func handleConn(conn net.Conn) {
 		isCorrectArgLength := func(expectedLen int) bool {
 			if len(args) != expectedLen {
 				// Return an error
-				conn.Write([]byte("-ERR wrong number of arguments for command\r\n"))
+				writeErr("wrong number of arguments for command")
 				return false
 			}
 			return true
@@ -101,19 +119,88 @@ func handleConn(conn net.Conn) {
 		// Coerce `cmd` into an uppercase string
 		switch strings.ToUpper(fmt.Sprint(cmd)) {
 		case "PING":
-			conn.Write([]byte("+PONG\r\n"))
+			writeString("PONG")
 		case "ECHO":
 			// Echo back message in first arg as simple string
 			if isCorrectArgLength(1) {
-				conn.Write([]byte(fmt.Sprintf("+%s\r\n", args[0])))
+				writeString(args[0].(string))
 			}
 		case "SET":
 			// Set key=val
-			if isCorrectArgLength(2) {
-				// We're just assuming these type casts work
+			if len(args) < 2 {
+				writeErr("wrong number of arguments for command")
+				return
+			} else {
 				key := args[0].(string)
-				cache[key] = args[1].(string)
-				conn.Write([]byte("+OK\r\n"))
+				val := cacheVal{
+					value: args[1].(string),
+				}
+
+				optVals := args[2:]
+				for len(optVals) > 0 {
+					opt, rest := optVals[0], optVals[1:]
+					switch strings.ToUpper(opt.(string)) {
+					case "NX": // Only set key if it does not exist
+						if _, ok := cache[key]; ok {
+							fmt.Println("NX -- Key exists")
+							writeNullString()
+							return
+						}
+						optVals = rest
+					case "XX": // Only set key if it already exists
+						if _, ok := cache[key]; !ok {
+							writeNullString()
+							return
+						}
+						optVals = rest
+					case "PX": // Set expiry in +PX milliseconds
+						if len(rest) == 0 {
+							writeErr("syntax error")
+							return
+						}
+						if !val.expiry.IsZero() {
+							fmt.Println("[execute SET PX] Duplicate values provided for expiry")
+							writeErr("syntax error")
+							return
+						}
+						// Set expiry
+						ms, err := strconv.Atoi(rest[0].(string))
+						if err != nil {
+							fmt.Println("[execute SET PX] Error formatting timeout: ", err)
+							writeErr("syntax error")
+							return
+						}
+						val.expiry = time.Now().Add(time.Millisecond * time.Duration(ms))
+						// Set optVals for next loop
+						optVals = rest[1:]
+					case "EX":
+						if len(rest) == 0 {
+							fmt.Println("[execute SET EX] No value provided")
+							writeErr("syntax error")
+							return
+						}
+						if !val.expiry.IsZero() {
+							fmt.Println("[execute SET EX] Duplicate values provided for expiry")
+							writeErr("syntax error")
+							return
+						}
+						// Set expiry
+						sec, err := strconv.Atoi(rest[0].(string))
+						if err != nil {
+							fmt.Println("[execute SET EX] Error formatting timeout: ", err)
+							writeErr("syntax error")
+							return
+						}
+						val.expiry = time.Now().Add(time.Second * time.Duration(sec))
+						// Set optVals for next loop
+						optVals = rest[1:]
+					default:
+						fmt.Println("[execute SET] Unrecognized option for SET: ", optVals)
+						optVals = rest
+					}
+				}
+				cache[key] = val
+				writeString("OK")
 			}
 		case "GET":
 			// GET key
@@ -121,14 +208,19 @@ func handleConn(conn net.Conn) {
 				key := args[0].(string)
 				val, ok := cache[key]
 				if !ok {
-					conn.Write([]byte("$-1\r\n"))
+					// Not found
+					writeNullString()
+				} else if !val.expiry.IsZero() && time.Now().After(val.expiry) {
+					// Expired
+					delete(cache, key)
+					writeNullString()
 				} else {
-					conn.Write([]byte(fmt.Sprintf("+%s\r\n", val)))
+					writeString(val.value)
 				}
 			}
 		default:
 			fmt.Printf("Unexpected command: '%s' with args: '%v'\n", cmd, args)
-			conn.Write([]byte("-ERR unrecognized command\r\n"))
+			writeErr("unrecognized command")
 		}
 	}
 }
