@@ -6,10 +6,12 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/codecrafters-io/redis-starter-go/app/config"
 	"github.com/codecrafters-io/redis-starter-go/app/handlers"
 )
 
 func main() {
+	config.ParseCLIFlags()
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
 		log.Fatal("Failed to bind to port 6379")

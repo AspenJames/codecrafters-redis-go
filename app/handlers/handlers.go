@@ -79,6 +79,8 @@ func Handle(command CommandArgs) CommandResponse {
 		return newSetHandler(args).execute()
 	case "GET":
 		return newGetHandler(args).execute()
+	case "CONFIG":
+		return newConfigHandler(args).execute()
 	default:
 		log.Printf("[Handle] Unexpected command: '%s' with args: '%v'\n", cmd, args)
 		return newDefaultHandler().execute()
