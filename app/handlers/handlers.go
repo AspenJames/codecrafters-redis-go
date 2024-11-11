@@ -36,21 +36,33 @@ func (b *baseHandler) argsExactly(n int) bool {
 
 /// [Utils] Formatting
 
-// err formats `s` as a simple error.
+// fmtArrayLen formats an array of length `l`
+// https://redis.io/docs/latest/develop/reference/protocol-spec/#arrays
+func (b *baseHandler) fmtArrayLen(l int) CommandResponse {
+	return []byte(fmt.Sprintf("*%d\r\n", l))
+}
+
+// fmtBulkString formats `s` as a bulk string.
+// https://redis.io/docs/latest/develop/reference/protocol-spec/#bulk-strings
+func (b *baseHandler) fmtBulkString(s string) CommandResponse {
+	return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(s), s))
+}
+
+// fmtErr formats `s` as a simple error.
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-errors
-func (b *baseHandler) err(s string) CommandResponse {
+func (b *baseHandler) fmtErr(s string) CommandResponse {
 	return []byte(fmt.Sprintf("-ERR %s\r\n", s))
 }
 
-// simpleString formats `s` as a simple string.
+// fmtSimpleString formats `s` as a simple string.
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-strings
-func (b *baseHandler) simpleString(s string) CommandResponse {
+func (b *baseHandler) fmtSimpleString(s string) CommandResponse {
 	return []byte(fmt.Sprintf("+%s\r\n", s))
 }
 
-// nullString returns a null bulk string.
+// fmtNullString returns a null bulk string.
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#bulk-strings
-func (b *baseHandler) nullString() CommandResponse {
+func (b *baseHandler) fmtNullString() CommandResponse {
 	return []byte("$-1\r\n")
 }
 
@@ -64,7 +76,7 @@ func newDefaultHandler() *defaultHandler {
 }
 
 func (d *defaultHandler) execute() CommandResponse {
-	return d.err("unrecognized command")
+	return d.fmtErr("unrecognized command")
 }
 
 // Main command handler

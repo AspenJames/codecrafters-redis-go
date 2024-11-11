@@ -31,16 +31,16 @@ func newSetHandler(args CommandArgs) *setHandler {
 func (s *setHandler) execute() CommandResponse {
 	// SET expects at least two arguments
 	if !s.argsAtLeast(2) {
-		return s.err("wrong number of arguments for command")
+		return s.fmtErr("wrong number of arguments for command")
 	}
 	// Parse key and value
 	key, ok := s.args[0].(string)
 	if !ok {
-		return s.err("syntax error")
+		return s.fmtErr("syntax error")
 	}
 	value, ok := s.args[1].(string)
 	if !ok {
-		return s.err("syntax error")
+		return s.fmtErr("syntax error")
 	}
 	// Set default expiry
 	// time.Time is not nilable in Go, but the zero value works
@@ -54,44 +54,44 @@ func (s *setHandler) execute() CommandResponse {
 		switch strings.ToUpper(opt.(string)) {
 		case "NX": // Only set key if it does not exist
 			if s.cache.KeyExists(key) {
-				return s.nullString()
+				return s.fmtNullString()
 			}
 			// Set options for next loop
 			options = rest
 		case "XX": // Only set key if it already exists
 			if !s.cache.KeyExists(key) {
-				return s.nullString()
+				return s.fmtNullString()
 			}
 			// Set options for next loop
 			options = rest
 		case "PX": // Set expiry in +PX milliseconds
 			if len(rest) == 0 {
-				return s.err("syntax error")
+				return s.fmtErr("syntax error")
 			}
 			if !expiry.IsZero() {
-				return s.err("syntax error")
+				return s.fmtErr("syntax error")
 			}
 			// Set expiry
 			ms, err := strconv.Atoi(rest[0].(string))
 			if err != nil {
 				log.Println("[SetHandler] Error formatting timeout: ", err)
-				return s.err("syntax error")
+				return s.fmtErr("syntax error")
 			}
 			expiry = time.Now().Add(time.Millisecond * time.Duration(ms))
 			// Set options for next loop
 			options = rest[1:]
 		case "EX":
 			if len(rest) == 0 {
-				return s.err("syntax error")
+				return s.fmtErr("syntax error")
 			}
 			if !expiry.IsZero() {
-				return s.err("syntax error")
+				return s.fmtErr("syntax error")
 			}
 			// Set expiry
 			sec, err := strconv.Atoi(rest[0].(string))
 			if err != nil {
 				log.Println("[SetHandler] Error formatting timeout: ", err)
-				return s.err("syntax error")
+				return s.fmtErr("syntax error")
 			}
 			expiry = time.Now().Add(time.Second * time.Duration(sec))
 			// Set options for next loop
@@ -103,5 +103,5 @@ func (s *setHandler) execute() CommandResponse {
 		}
 	}
 	s.cache.Set(key, value, expiry)
-	return s.simpleString("OK")
+	return s.fmtSimpleString("OK")
 }

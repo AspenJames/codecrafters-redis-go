@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"log"
 	"strings"
 
@@ -25,31 +24,31 @@ func newConfigHandler(args CommandArgs) *configHandler {
 func (e *configHandler) execute() CommandResponse {
 	// CONFIG expects at least two arguments
 	if !e.argsAtLeast(2) {
-		return e.err("wrong number of arguments for command")
+		return e.fmtErr("wrong number of arguments for command")
 	}
 	cmd, args := e.args[0], e.args[1:]
 	switch strings.ToUpper(cmd.(string)) {
 	case "GET":
 		// Answer will be an array of pairs, making its length twice the number
 		// of parameters requested
-		resp := fmt.Sprintf("*%d\r\n", 2*len(args))
+		resp := e.fmtArrayLen(2 * len(args))
 		for len(args) > 0 {
 			key, ok := args[0].(string)
 			if !ok {
-				return e.err("syntax error")
+				return e.fmtErr("syntax error")
 			}
-			resp += fmt.Sprintf("$%d\r\n%s\r\n", len(key), key)
+			resp = append(resp, e.fmtBulkString(key)...)
 			val, ok := config.Get(key)
 			if !ok {
-				resp += string(e.nullString())
+				resp = append(resp, e.fmtNullString()...)
 			} else {
-				resp += fmt.Sprintf("$%d\r\n%s\r\n", len(val), val)
+				resp = append(resp, e.fmtBulkString(val)...)
 			}
 			args = args[1:]
 		}
-		return []byte(resp)
+		return resp
 	default:
 		log.Println("[ConfigHandler] Unrecognized command: ", cmd)
-		return e.err("unrecognized command")
+		return e.fmtErr("unrecognized command")
 	}
 }

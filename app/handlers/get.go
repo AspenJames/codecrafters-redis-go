@@ -22,16 +22,16 @@ func newGetHandler(args CommandArgs) *getHandler {
 func (g *getHandler) execute() CommandResponse {
 	// GET expects exactly one argument
 	if !g.argsExactly(1) {
-		return g.err("wrong number of arguments for command")
+		return g.fmtErr("wrong number of arguments for command")
 	}
 	key, ok := g.args[0].(string)
 	if !ok {
 		log.Printf("[GetHandler] Non-string key: %#v\n", g.args[0])
-		return g.err("syntax error")
+		return g.fmtErr("syntax error")
 	}
 	val, ok := g.cache.Get(key)
 	if !ok {
-		return g.nullString()
+		return g.fmtNullString()
 	}
-	return g.simpleString(val)
+	return g.fmtSimpleString(val)
 }

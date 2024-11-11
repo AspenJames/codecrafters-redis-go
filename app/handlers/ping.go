@@ -14,5 +14,5 @@ func newPingHandler() *pingHandler {
 }
 
 func (p *pingHandler) execute() CommandResponse {
-	return p.simpleString("PONG")
+	return p.fmtSimpleString("PONG")
 }
