@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"log"
@@ -6,17 +6,19 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/cache"
 )
 
-type getHandler struct {
-	cache *cache.Cache
-	baseHandler
-}
+type GetHandler = Handler
 
 // GET key
 // Get the value of key. If the key does not exist the special value nil is
 // returned. An error is returned if the value stored at key is not a string,
 // because GET only handles string values.
-func newGetHandler(args CommandArgs) *getHandler {
+func newGetHandler(args CommandArgs) GetHandler {
 	return &getHandler{cache.GetDefaultCache(), baseHandler{args: args}}
+}
+
+type getHandler struct {
+	cache *cache.Cache
+	baseHandler
 }
 
 func (g *getHandler) execute() CommandResponse {

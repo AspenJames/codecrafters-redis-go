@@ -1,10 +1,14 @@
-package handlers
+package handler
 
 import (
 	"fmt"
 	"log"
 	"strings"
 )
+
+type Handler interface {
+	execute() CommandResponse
+}
 
 // baseHandler holds args, validation logic, and formatting.
 // All handlers should inhert from baseHandler.
@@ -83,16 +87,16 @@ func (d *defaultHandler) execute() CommandResponse {
 func Handle(command CommandArgs) CommandResponse {
 	cmd, args := command[0], command[1:]
 	switch strings.ToUpper(fmt.Sprint(cmd)) {
-	case "PING":
-		return newPingHandler().execute()
-	case "ECHO":
-		return newEchoHandler(args).execute()
-	case "SET":
-		return newSetHandler(args).execute()
-	case "GET":
-		return newGetHandler(args).execute()
 	case "CONFIG":
 		return newConfigHandler(args).execute()
+	case "ECHO":
+		return newEchoHandler(args).execute()
+	case "GET":
+		return newGetHandler(args).execute()
+	case "PING":
+		return newPingHandler().execute()
+	case "SET":
+		return newSetHandler(args).execute()
 	default:
 		log.Printf("[Handle] Unexpected command: '%s' with args: '%v'\n", cmd, args)
 		return newDefaultHandler().execute()

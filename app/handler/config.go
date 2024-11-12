@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"log"
@@ -7,18 +7,17 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/config"
 )
 
-// CONFIG GET parameter [parameter ...]
-// The CONFIG GET command is used to read the configuration parameters of a
-// running Redis server.
-type configHandler struct {
-	baseHandler
-}
+type ConfigHandler = Handler
 
 // CONFIG GET parameter [parameter ...]
 // The CONFIG GET command is used to read the configuration parameters of a
 // running Redis server.
-func newConfigHandler(args CommandArgs) *configHandler {
+func newConfigHandler(args CommandArgs) ConfigHandler {
 	return &configHandler{baseHandler{args: args}}
+}
+
+type configHandler struct {
+	baseHandler
 }
 
 func (e *configHandler) execute() CommandResponse {

@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"log"
@@ -9,10 +9,7 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/cache"
 )
 
-type setHandler struct {
-	cache *cache.Cache
-	baseHandler
-}
+type SetHandler = Handler
 
 // SET key value [NX | XX] [EX seconds | PX milliseconds ]
 //
@@ -24,8 +21,13 @@ type setHandler struct {
 // * PX milliseconds -- Set the specified expire time, in milliseconds (a positive integer).
 // * NX -- Only set the key if it does not already exist.
 // * XX -- Only set the key if it already exists.
-func newSetHandler(args CommandArgs) *setHandler {
+func newSetHandler(args CommandArgs) SetHandler {
 	return &setHandler{cache.GetDefaultCache(), baseHandler{args: args}}
+}
+
+type setHandler struct {
+	cache *cache.Cache
+	baseHandler
 }
 
 func (s *setHandler) execute() CommandResponse {

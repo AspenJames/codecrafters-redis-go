@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"github.com/codecrafters-io/redis-starter-go/app/config"
-	"github.com/codecrafters-io/redis-starter-go/app/handlers"
+	"github.com/codecrafters-io/redis-starter-go/app/handler"
 	"github.com/codecrafters-io/redis-starter-go/app/parser"
 )
 
@@ -36,10 +36,10 @@ func handleConn(conn net.Conn) {
 	for {
 		parsed := parser.NewRESPParser(scanner).Parse()
 		// Assert `parsed` is of form CommandArgs
-		command, ok := parsed.(handlers.CommandArgs)
+		command, ok := parsed.(handler.CommandArgs)
 		if !ok {
 			break
 		}
-		conn.Write(handlers.Handle(command))
+		conn.Write(handler.Handle(command))
 	}
 }

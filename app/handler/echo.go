@@ -1,15 +1,16 @@
-package handlers
+package handler
 
 import "log"
 
-// ECHO message -- returns message.
-type echoHandler struct {
-	baseHandler
-}
+type EchoHandler = Handler
 
 // ECHO message -- returns message.
 func newEchoHandler(args CommandArgs) *echoHandler {
 	return &echoHandler{baseHandler{args: args}}
+}
+
+type echoHandler struct {
+	baseHandler
 }
 
 func (e *echoHandler) execute() CommandResponse {
