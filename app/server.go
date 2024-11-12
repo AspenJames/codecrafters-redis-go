@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
 
+	"github.com/codecrafters-io/redis-starter-go/app/cache"
 	"github.com/codecrafters-io/redis-starter-go/app/config"
 	"github.com/codecrafters-io/redis-starter-go/app/handler"
 	"github.com/codecrafters-io/redis-starter-go/app/parser"
@@ -13,15 +16,38 @@ import (
 func main() {
 	config.ParseCLIFlags()
 
+	// Load from rdb file.
+	dir, ok := config.Get("dir")
+	if !ok {
+		log.Fatal("[main] Unable to retrieve directory from config")
+	}
+	dbfilename, ok := config.Get("dbfilename")
+	if !ok {
+		log.Fatal("[main] Unable to retrieve dbfilename from config")
+	}
+	rdbFilepath := filepath.Join(dir, dbfilename)
+	rdbFile, err := os.Open(rdbFilepath)
+	if !os.IsNotExist(err) {
+		if err != nil {
+			log.Fatal("[main] Unable to open rdb file: ", err.Error())
+		}
+		defer rdbFile.Close()
+		resp := parser.NewRDBParser(rdbFile).Parse()
+		err = cache.GetDefaultCache().LoadRDB(resp)
+		if err != nil {
+			log.Fatal("[main] Unable to load RDB data into cache: ", err.Error())
+		}
+	}
+
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
-		log.Fatal("Failed to bind to port 6379")
+		log.Fatal("[main] Failed to bind to port 6379")
 	}
 
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Fatal("Error accepting connection: ", err.Error())
+			log.Fatal("[main] Error accepting connection: ", err.Error())
 		}
 		go handleConn(conn)
 	}
