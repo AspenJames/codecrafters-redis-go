@@ -30,11 +30,11 @@ func NewRDBParser(dbfile *os.File) RDBParser {
 	return &rdbParser{dbfile}
 }
 
-func (c *rdbParser) Parse() ParseResponse {
+func (r *rdbParser) Parse() ParseResponse {
 	// Header section
 	// Parse magic string & version -- 9 bytes
 	headerBuf := make([]byte, 9)
-	n, err := c.dbfile.Read(headerBuf)
+	n, err := r.dbfile.Read(headerBuf)
 	if err != nil {
 		log.Println("[RDBParser] Error reading header: ", err.Error())
 		return nil
@@ -59,13 +59,13 @@ func (c *rdbParser) Parse() ParseResponse {
 
 	// Parse sections
 	// Extract OpCode from first bit
-	oc, err := c.readSingleByte()
+	oc, err := r.readSingleByte()
 	if err != nil {
 		log.Println("[RDBParser] Error reading first op code: ", err.Error())
 		return nil
 	}
 
-	data, err := c.processOpCode(oc, [][]interface{}{})
+	data, err := r.processOpCode(oc, [][]interface{}{})
 	if err != nil && err != io.EOF {
 		log.Println("[RDBParser] Error parsing file: ", err.Error())
 		return nil
@@ -76,32 +76,32 @@ func (c *rdbParser) Parse() ParseResponse {
 
 // Recursively process opCode and subsequent data until EOF or error; returns
 // list of k/v with optional expiry -- k, v[, e]
-func (c *rdbParser) processOpCode(code byte, data [][]interface{}) ([][]interface{}, error) {
+func (r *rdbParser) processOpCode(code byte, data [][]interface{}) ([][]interface{}, error) {
 	switch code {
 	case eofFlag:
 		// We've reached the end of the file
 		return data, nil
 	case auxFlag:
 		// Metadata; read two strings
-		s1, err := c.readStringEncoding()
+		s1, err := r.readStringEncoding()
 		if err != nil {
 			return data, err
 		}
-		s2, err := c.readStringEncoding()
+		s2, err := r.readStringEncoding()
 		if err != nil {
 			return data, err
 		}
 		// Log metadata; we otherwise ignore it for now.
 		log.Printf("[RDBParser] Metadata %q = %q\n", s1, s2)
 		// Read next opCode
-		oc, err := c.readSingleByte()
+		oc, err := r.readSingleByte()
 		if err != nil {
 			return data, err
 		}
-		return c.processOpCode(oc, data)
+		return r.processOpCode(oc, data)
 	case selFlag:
 		// Data section; read size encoded db index.
-		idx, _, err := c.readSizeEncoding()
+		idx, _, err := r.readSizeEncoding()
 		if err != nil {
 			return data, err
 		}
@@ -109,7 +109,7 @@ func (c *rdbParser) processOpCode(code byte, data [][]interface{}) ([][]interfac
 		log.Printf("[RDBParser] Database index %d\n", idx)
 
 		// Read next op code.
-		oc, err := c.readSingleByte()
+		oc, err := r.readSingleByte()
 		if err != nil {
 			return data, err
 		}
@@ -118,11 +118,11 @@ func (c *rdbParser) processOpCode(code byte, data [][]interface{}) ([][]interfac
 			return data, fmt.Errorf("expected %#v op code, received %#v", htsFlag, oc)
 		}
 		// Read two size encoded integers.
-		dbHashTableSize, _, err := c.readSizeEncoding()
+		dbHashTableSize, _, err := r.readSizeEncoding()
 		if err != nil {
 			return data, err
 		}
-		expiryHashTableSize, _, err := c.readSizeEncoding()
+		expiryHashTableSize, _, err := r.readSizeEncoding()
 		if err != nil {
 			return data, err
 		}
@@ -130,11 +130,11 @@ func (c *rdbParser) processOpCode(code byte, data [][]interface{}) ([][]interfac
 		log.Printf("[RDBParser] dbhts: %d; ehts: %d\n", dbHashTableSize, expiryHashTableSize)
 
 		// Process data section
-		nextOc, kvs, err := c.processValues([][]interface{}{})
+		nextOc, kvs, err := r.processValues([][]interface{}{})
 		if err != nil {
 			return data, err
 		}
-		return c.processOpCode(nextOc, append(data, kvs[:]...))
+		return r.processOpCode(nextOc, append(data, kvs[:]...))
 	default:
 		return data, fmt.Errorf("unrecognized op code '%#v'", code)
 	}
@@ -142,13 +142,13 @@ func (c *rdbParser) processOpCode(code byte, data [][]interface{}) ([][]interfac
 
 // Reads key/value pairs from database section with optional expiry.
 // [["key", "val"], ["key", "val", "expiry"]]
-func (c *rdbParser) processValues(data [][]interface{}) (byte, [][]interface{}, error) {
+func (r *rdbParser) processValues(data [][]interface{}) (byte, [][]interface{}, error) {
 	// Initialize optional expiry
 	var expiry time.Time
 	var vt byte
 
 	// Read first byte
-	fb, err := c.readSingleByte()
+	fb, err := r.readSingleByte()
 	if err != nil {
 		return byte(0), data, err
 	}
@@ -159,22 +159,22 @@ func (c *rdbParser) processValues(data [][]interface{}) (byte, [][]interface{}, 
 	case exmFlag:
 		// Read expiry time in ms; 8 byte unsigned long, little endian
 		var exp int64
-		if err := binary.Read(c.dbfile, binary.LittleEndian, &exp); err != nil {
+		if err := binary.Read(r.dbfile, binary.LittleEndian, &exp); err != nil {
 			return byte(0), data, err
 		}
 		expiry = time.UnixMilli(exp)
-		vt, err = c.readSingleByte()
+		vt, err = r.readSingleByte()
 		if err != nil {
 			return byte(0), data, err
 		}
 	case exsFlag:
 		// Read expiry time in s; 4 byte unsigned int, little endian
 		var exp int32
-		if err := binary.Read(c.dbfile, binary.LittleEndian, &exp); err != nil {
+		if err := binary.Read(r.dbfile, binary.LittleEndian, &exp); err != nil {
 			return byte(0), data, err
 		}
 		expiry = time.Unix(int64(exp), 0)
-		vt, err = c.readSingleByte()
+		vt, err = r.readSingleByte()
 		if err != nil {
 			return byte(0), data, err
 		}
@@ -183,25 +183,25 @@ func (c *rdbParser) processValues(data [][]interface{}) (byte, [][]interface{}, 
 	}
 
 	// Read string encoded key
-	key, err := c.readStringEncoding()
+	key, err := r.readStringEncoding()
 	if err != nil {
 		return byte(0), data, err
 	}
-	val, err := c.readValue(vt)
+	val, err := r.readValue(vt)
 	if err != nil {
 		return byte(0), data, err
 	}
 	// Return k/v with optional expiry
 	if !expiry.IsZero() {
-		return c.processValues(append(data, []interface{}{key, val, expiry}))
+		return r.processValues(append(data, []interface{}{key, val, expiry}))
 	}
-	return c.processValues(append(data, []interface{}{key, val}))
+	return r.processValues(append(data, []interface{}{key, val}))
 }
 
 // Reads a single byte.
-func (c *rdbParser) readSingleByte() (byte, error) {
+func (r *rdbParser) readSingleByte() (byte, error) {
 	buf := make([]byte, 1)
-	if _, err := c.dbfile.Read(buf); err != nil {
+	if _, err := r.dbfile.Read(buf); err != nil {
 		return byte(0), err
 	}
 	return buf[0], nil
@@ -210,9 +210,9 @@ func (c *rdbParser) readSingleByte() (byte, error) {
 // Reads size encoding from next byte.
 // isString flag is set when the two significant bits of the next byte are 0b11.
 // https://rdb.fnordig.de/file_format.html#integers-as-string
-func (c *rdbParser) readSizeEncoding() (size int, isString bool, err error) {
+func (r *rdbParser) readSizeEncoding() (size int, isString bool, err error) {
 	// Pull a bit off to get a size
-	b, err := c.readSingleByte()
+	b, err := r.readSingleByte()
 	if err != nil {
 		return
 	}
@@ -224,19 +224,19 @@ func (c *rdbParser) readSizeEncoding() (size int, isString bool, err error) {
 		switch b & 0b00111111 {
 		case 0b0: // 8 bit integer.
 			var val int8
-			if err = binary.Read(c.dbfile, binary.LittleEndian, &val); err != nil {
+			if err = binary.Read(r.dbfile, binary.LittleEndian, &val); err != nil {
 				return
 			}
 			size = int(val)
 		case 0b1: // 16 bit integer
 			var val int16
-			if err = binary.Read(c.dbfile, binary.LittleEndian, &val); err != nil {
+			if err = binary.Read(r.dbfile, binary.LittleEndian, &val); err != nil {
 				return
 			}
 			size = int(val)
 		case 0b10: // 32 bit integer.
 			var val int32
-			if err = binary.Read(c.dbfile, binary.LittleEndian, &val); err != nil {
+			if err = binary.Read(r.dbfile, binary.LittleEndian, &val); err != nil {
 				return
 			}
 			size = int(val)
@@ -246,13 +246,13 @@ func (c *rdbParser) readSizeEncoding() (size int, isString bool, err error) {
 		}
 	case 0b10: // Size is in next 4 bytes (32 bits)
 		var val int32
-		if err = binary.Read(c.dbfile, binary.LittleEndian, &val); err != nil {
+		if err = binary.Read(r.dbfile, binary.LittleEndian, &val); err != nil {
 			return
 		}
 		size = int(val)
 	case 0b1: // Size is in remaining 6 bits plus next byte
 		var nb byte
-		nb, err = c.readSingleByte()
+		nb, err = r.readSingleByte()
 		if err != nil {
 			return
 		}
@@ -269,8 +269,8 @@ func (c *rdbParser) readSizeEncoding() (size int, isString bool, err error) {
 	return
 }
 
-func (c *rdbParser) readStringEncoding() ([]byte, error) {
-	size, isString, err := c.readSizeEncoding()
+func (r *rdbParser) readStringEncoding() ([]byte, error) {
+	size, isString, err := r.readSizeEncoding()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -280,16 +280,16 @@ func (c *rdbParser) readStringEncoding() ([]byte, error) {
 	}
 	// Read string of `size`
 	strBuf := make([]byte, int(size))
-	if _, err := c.dbfile.Read(strBuf); err != nil {
+	if _, err := r.dbfile.Read(strBuf); err != nil {
 		return []byte{}, err
 	}
 	return strBuf, nil
 }
 
-func (c *rdbParser) readValue(vt byte) ([]byte, error) {
+func (r *rdbParser) readValue(vt byte) ([]byte, error) {
 	switch vt {
 	case 0x0: // String Encoding
-		return c.readStringEncoding()
+		return r.readStringEncoding()
 	case 0x1: // List Encoding
 		return []byte{}, fmt.Errorf("unimplemented encoding: List")
 	case 0x2: // Set Encoding
