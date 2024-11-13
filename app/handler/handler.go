@@ -75,7 +75,7 @@ type defaultHandler struct {
 	baseHandler
 }
 
-func newDefaultHandler() *defaultHandler {
+func newDefaultHandler(_ CommandArgs) Handler {
 	return &defaultHandler{}
 }
 
@@ -83,22 +83,22 @@ func (d *defaultHandler) execute() CommandResponse {
 	return d.fmtErr("unrecognized command")
 }
 
+type HandlerFunc = func(CommandArgs) Handler
+
 // Main command handler
 func Handle(command CommandArgs) CommandResponse {
-	cmd, args := command[0], command[1:]
-	switch strings.ToUpper(fmt.Sprint(cmd)) {
-	case "CONFIG":
-		return newConfigHandler(args).execute()
-	case "ECHO":
-		return newEchoHandler(args).execute()
-	case "GET":
-		return newGetHandler(args).execute()
-	case "PING":
-		return newPingHandler().execute()
-	case "SET":
-		return newSetHandler(args).execute()
-	default:
-		log.Printf("[Handle] Unexpected command: '%s' with args: '%v'\n", cmd, args)
-		return newDefaultHandler().execute()
+	handlers := map[string]HandlerFunc{
+		"CONFIG": newConfigHandler,
+		"ECHO":   newEchoHandler,
+		"GET":    newGetHandler,
+		"KEYS":   newKeysHander,
+		"PING":   newPingHandler,
 	}
+	cmd, args := command[0], command[1:]
+	handler, ok := handlers[strings.ToUpper(fmt.Sprint(cmd))]
+	if !ok {
+		log.Printf("[Handle] Unexpected command: '%s' with args: '%v'\n", cmd, args)
+		return newDefaultHandler(args).execute()
+	}
+	return handler(args).execute()
 }

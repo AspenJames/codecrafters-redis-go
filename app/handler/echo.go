@@ -5,7 +5,7 @@ import "log"
 type EchoHandler = Handler
 
 // ECHO message -- returns message.
-func newEchoHandler(args CommandArgs) *echoHandler {
+func newEchoHandler(args CommandArgs) EchoHandler {
 	return &echoHandler{baseHandler{args: args}}
 }
 

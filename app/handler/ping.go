@@ -6,7 +6,7 @@ type PingHandler = Handler
 // For this implementation, we ignore arguments and just return PONG. The actual
 // implementation accepts an optional message and will return it if given,
 // similar to ECHO.
-func newPingHandler() PingHandler {
+func newPingHandler(_ CommandArgs) PingHandler {
 	return &pingHandler{}
 }
 
