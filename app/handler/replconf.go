@@ -12,6 +12,6 @@ type replconfHandler struct {
 	baseHandler
 }
 
-func (p *replconfHandler) execute() CommandResponse {
-	return p.fmtSimpleString("OK")
+func (r *replconfHandler) execute() CommandResponse {
+	return r.fmtSimpleString("OK")
 }
