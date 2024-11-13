@@ -22,8 +22,8 @@ type baseHandler struct {
 // Array of arguments of any type.
 type CommandArgs = []interface{}
 
-// Return response as []byte to pass to net.Conn.Write().
-type CommandResponse = []byte
+// Return response as list of []byte to pass to net.Conn.Write().
+type CommandResponse = [][]byte
 
 // Utils
 /// [Utils] Validation
@@ -43,31 +43,31 @@ func (b *baseHandler) argsExactly(n int) bool {
 // fmtArrayLen formats an array of length `l`
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#arrays
 func (b *baseHandler) fmtArrayLen(l int) CommandResponse {
-	return []byte(fmt.Sprintf("*%d\r\n", l))
+	return CommandResponse{[]byte(fmt.Sprintf("*%d\r\n", l))}
 }
 
 // fmtBulkString formats `s` as a bulk string.
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#bulk-strings
 func (b *baseHandler) fmtBulkString(s string) CommandResponse {
-	return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(s), s))
+	return CommandResponse{[]byte(fmt.Sprintf("$%d\r\n%s\r\n", len(s), s))}
 }
 
 // fmtErr formats `s` as a simple error.
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-errors
 func (b *baseHandler) fmtErr(s string) CommandResponse {
-	return []byte(fmt.Sprintf("-ERR %s\r\n", s))
+	return CommandResponse{[]byte(fmt.Sprintf("-ERR %s\r\n", s))}
 }
 
 // fmtSimpleString formats `s` as a simple string.
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-strings
 func (b *baseHandler) fmtSimpleString(s string) CommandResponse {
-	return []byte(fmt.Sprintf("+%s\r\n", s))
+	return CommandResponse{[]byte(fmt.Sprintf("+%s\r\n", s))}
 }
 
 // fmtNullString returns a null bulk string.
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#bulk-strings
 func (b *baseHandler) fmtNullString() CommandResponse {
-	return []byte("$-1\r\n")
+	return CommandResponse{[]byte("$-1\r\n")}
 }
 
 // Default handler for unrecognized commands

@@ -82,6 +82,15 @@ func handleConn(conn net.Conn) {
 		if !ok {
 			break
 		}
-		conn.Write(handler.Handle(command))
+		for _, resp := range handler.Handle(command) {
+			// Without _something_ here reading resp though some sort of
+			// formatting, the RDB data from PSYNC won't actually write out.
+			// ¯\_(ツ)_/¯
+			_ = fmt.Sprint(resp)
+			_, err := conn.Write(resp)
+			if err != nil {
+				log.Println("[main] Error writing command response: ", err.Error())
+			}
+		}
 	}
 }
