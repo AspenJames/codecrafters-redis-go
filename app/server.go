@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -39,10 +40,18 @@ func main() {
 		}
 	}
 
-	l, err := net.Listen("tcp", "0.0.0.0:6379")
-	if err != nil {
-		log.Fatal("[main] Failed to bind to port 6379")
+	// Run listener.
+	port, ok := config.Get("port")
+	if !ok {
+		log.Fatal("[main] Unable to retrieve port from config")
 	}
+	addr := fmt.Sprintf("0.0.0.0:%s", port)
+
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatal("[main] Failed to bind to port ", port)
+	}
+	log.Println("[main] Listening on", addr)
 
 	for {
 		conn, err := l.Accept()
