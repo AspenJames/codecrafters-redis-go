@@ -95,6 +95,7 @@ func Handle(command CommandArgs) CommandResponse {
 		"KEYS":     newKeysHander,
 		"PING":     newPingHandler,
 		"SET":      newSetHandler,
+		"PSYNC":    newPsyncHandler,
 		"REPLCONF": newReplconfHandler,
 	}
 	cmd, args := command[0], command[1:]

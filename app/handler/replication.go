@@ -73,5 +73,9 @@ func (r *replicationClient) Init() error {
 	if _, err = sendCmd([]string{"REPLCONF", "capa", "psync2"}); err != nil {
 		return err
 	}
+	// Send PSYNC ? -1
+	if _, err := sendCmd([]string{"PSYNC", "?", "-1"}); err != nil {
+		return err
+	}
 	return nil
 }
