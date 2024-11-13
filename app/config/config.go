@@ -3,9 +3,10 @@ package config
 import "flag"
 
 var (
-	dir        string
 	dbfilename string
+	dir        string
 	port       string
+	replicaof  string
 
 	config cfg = make(cfg)
 )
@@ -22,11 +23,21 @@ func Set(key, value string) {
 }
 
 func ParseCLIFlags() {
-	flag.StringVar(&dir, "dir", "/tmp/redis-files", "directory where the RDB file is stored")
 	flag.StringVar(&dbfilename, "dbfilename", "dump.rdb", "name of the RDB file")
-	flag.StringVar(&port, "port", "6379", "port on which to listen")
+	flag.StringVar(&dir, "dir", "/tmp/redis-files", "directory where the RDB file is stored")
+	flag.StringVar(&port, "port", "", "port on which to listen")
+	flag.StringVar(&replicaof, "replicaof", "", "<MASTER HOST> <MASTER PORT>")
 	flag.Parse()
 	Set("dir", dir)
 	Set("dbfilename", dbfilename)
+	Set("replicaof", replicaof)
+	if port == "" {
+		// Set default port; depends on replicaof status.
+		if replicaof == "" {
+			port = "6379"
+		} else {
+			port = "6380"
+		}
+	}
 	Set("port", port)
 }

@@ -3,6 +3,8 @@ package handler
 import (
 	"log"
 	"strings"
+
+	"github.com/codecrafters-io/redis-starter-go/app/config"
 )
 
 type InfoHandler = Handler
@@ -38,8 +40,17 @@ func (i *infoHandler) execute() CommandResponse {
 		switch strings.ToLower(section) {
 		case "replication":
 			responseLines = append(responseLines, "# Replication")
-			// For now, we just hard code the role to master
-			responseLines = append(responseLines, "role:master")
+			// Get replica status from config
+			replicaof, ok := config.Get("replicaof")
+			if !ok {
+				log.Println("[InfoHandler] Unexpected error: unable to retrieve 'replicaof' from config")
+				return i.fmtErr("unexpected server error")
+			}
+			if replicaof == "" {
+				responseLines = append(responseLines, "role:master")
+			} else {
+				responseLines = append(responseLines, "role:slave")
+			}
 		default:
 			// Ignore unrecognized section
 			log.Printf("[InfoHandler] Unrecognized INFO section %q\n", section)
