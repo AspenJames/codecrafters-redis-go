@@ -91,6 +91,7 @@ func Handle(command CommandArgs) CommandResponse {
 		"CONFIG": newConfigHandler,
 		"ECHO":   newEchoHandler,
 		"GET":    newGetHandler,
+		"INFO":   newInfoHandler,
 		"KEYS":   newKeysHander,
 		"PING":   newPingHandler,
 		"SET":    newSetHandler,
