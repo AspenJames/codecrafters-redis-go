@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 )
 
@@ -39,6 +40,16 @@ func (c *Cache) Get(key string) (string, bool) {
 		return "", false
 	}
 	return val.val, ok
+}
+
+func (c *Cache) GetKeys(pattern *regexp.Regexp) []string {
+	var keys []string
+	for k := range c.cache {
+		if pattern.Match([]byte(k)) {
+			keys = append(keys, k)
+		}
+	}
+	return keys
 }
 
 func (c *Cache) Set(key string, value string, expiry time.Time) {

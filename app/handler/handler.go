@@ -93,6 +93,7 @@ func Handle(command CommandArgs) CommandResponse {
 		"GET":    newGetHandler,
 		"KEYS":   newKeysHander,
 		"PING":   newPingHandler,
+		"SET":    newSetHandler,
 	}
 	cmd, args := command[0], command[1:]
 	handler, ok := handlers[strings.ToUpper(fmt.Sprint(cmd))]
