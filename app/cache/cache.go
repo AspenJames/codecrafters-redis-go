@@ -66,6 +66,8 @@ func (c *Cache) LoadRDB(resp interface{}) error {
 	if !ok {
 		return fmt.Errorf("unexpected RDBParser response format")
 	}
+	// Dump current cache
+	c.cache = make(map[string]*val)
 
 	for _, elem := range elems {
 		var (

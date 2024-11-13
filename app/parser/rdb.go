@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strconv"
 	"time"
 )
@@ -23,10 +22,10 @@ var (
 )
 
 type rdbParser struct {
-	dbfile *os.File
+	dbfile io.Reader
 }
 
-func NewRDBParser(dbfile *os.File) RDBParser {
+func NewRDBParser(dbfile io.Reader) RDBParser {
 	return &rdbParser{dbfile}
 }
 
@@ -80,6 +79,11 @@ func (r *rdbParser) processOpCode(code byte, data [][]interface{}) ([][]interfac
 	switch code {
 	case eofFlag:
 		// We've reached the end of the file
+		// Discard 8 byte checksum
+		buf := make([]byte, 8)
+		if _, err := r.dbfile.Read(buf); err != nil {
+			return data, err
+		}
 		return data, nil
 	case auxFlag:
 		// Metadata; read two strings
