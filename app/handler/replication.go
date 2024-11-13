@@ -2,9 +2,12 @@ package handler
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"strconv"
 
 	"github.com/codecrafters-io/redis-starter-go/app/config"
 	"github.com/codecrafters-io/redis-starter-go/app/parser"
@@ -32,13 +35,23 @@ func (r *replicationClient) Init() error {
 	defer conn.Close()
 
 	respParser := parser.NewRESPParser(bufio.NewScanner(conn))
+	// rdbParser := parser.NewRDBParser(conn)
+	readSingleByte := func() (byte, error) {
+		// timeout := time.Now().Add(time.Second * 1)
+		// conn.SetReadDeadline(timeout)
+		buf := make([]byte, 1)
+		if _, err := conn.Read(buf); err != nil {
+			return byte(0), err
+		}
+		return buf[0], nil
+	}
 
 	sendCmd := func(cmd []string) (string, error) {
 		// Build request.
 		req := []byte{}
-		req = append(req, r.fmtArrayLen(len(cmd))...)
+		req = append(req, r.fmtArrayLen(len(cmd))[0]...)
 		for _, str := range cmd {
-			req = append(req, r.fmtBulkString(str)...)
+			req = append(req, r.fmtBulkString(str)[0]...)
 		}
 		// Write request.
 		_, err := conn.Write(req)
@@ -77,5 +90,49 @@ func (r *replicationClient) Init() error {
 	if _, err := sendCmd([]string{"PSYNC", "?", "-1"}); err != nil {
 		return err
 	}
+	// Assume FULLRESYNC, read rdb data
+	b, err := readSingleByte()
+	if err != nil {
+		// Sometimes we don't get data, check for EOF
+		if err == io.EOF {
+			log.Println("[ReplicationClient] EOF read; no RDB data sent")
+			return nil
+		}
+		// TODO something better
+		log.Println("[0] ", err)
+		return err
+	}
+	// RDB data is encoded as '$<size>\r\n<content>'.
+	if b != byte('$') {
+		return fmt.Errorf("unexpected byte flag response from PSYNC: %b", b)
+	}
+	// Read until \r
+	sizeBytes := []byte{}
+	for {
+		b, err = readSingleByte()
+		if err != nil {
+			log.Println("[1] ", err)
+			return err
+		}
+		if b == byte('\r') {
+			// Discard next byte, '\n'.
+			readSingleByte()
+			break
+		}
+		sizeBytes = append(sizeBytes, b)
+	}
+	// Parse size; read RDB data.
+	size, err := strconv.Atoi(string(sizeBytes))
+	if err != nil {
+		log.Println("[2] ", err)
+		return err
+	}
+	rdbBytes := make([]byte, size)
+	if _, err := conn.Read(rdbBytes); err != nil {
+		log.Println("[3] ", err)
+		return err
+	}
+	rdbData := parser.NewRDBParser(bytes.NewBuffer(rdbBytes)).Parse()
+	log.Printf("RDB Data: %#v\n", rdbData)
 	return nil
 }
