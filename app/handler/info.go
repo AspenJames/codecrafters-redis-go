@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -48,6 +49,11 @@ func (i *infoHandler) execute() CommandResponse {
 			}
 			if replicaof == "" {
 				responseLines = append(responseLines, "role:master")
+				// Ignore config 'misses' here
+				replid, _ := config.Get("master_replid")
+				responseLines = append(responseLines, fmt.Sprintf("master_replid:%s", replid))
+				replOffset, _ := config.Get("master_repl_offset")
+				responseLines = append(responseLines, fmt.Sprintf("master_repl_offset:%s", replOffset))
 			} else {
 				responseLines = append(responseLines, "role:slave")
 			}

@@ -1,6 +1,11 @@
 package config
 
-import "flag"
+import (
+	"flag"
+	"time"
+
+	"golang.org/x/exp/rand"
+)
 
 var (
 	dbfilename string
@@ -23,6 +28,7 @@ func Set(key, value string) {
 }
 
 func ParseCLIFlags() {
+	rand.Seed(uint64(time.Now().UnixNano()))
 	flag.StringVar(&dbfilename, "dbfilename", "dump.rdb", "name of the RDB file")
 	flag.StringVar(&dir, "dir", "/tmp/redis-files", "directory where the RDB file is stored")
 	flag.StringVar(&port, "port", "", "port on which to listen")
@@ -40,4 +46,15 @@ func ParseCLIFlags() {
 		}
 	}
 	Set("port", port)
+	Set("master_replid", generateID())
+	Set("master_repl_offset", "0")
+}
+
+func generateID() string {
+	letters := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, 40)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }
