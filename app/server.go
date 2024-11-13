@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/cache"
 	"github.com/codecrafters-io/redis-starter-go/app/config"
@@ -16,16 +17,14 @@ import (
 
 func main() {
 	config.ParseCLIFlags()
+	// It's safe to ignore the `ok` flag on these config values, since we know
+	// they're set in config.ParseCLIFlags().
+	dir, _ := config.Get("dir")
+	dbfilename, _ := config.Get("dbfilename")
+	replicaof, _ := config.Get("replicaof")
+	port, _ := config.Get("port")
 
 	// Load from rdb file.
-	dir, ok := config.Get("dir")
-	if !ok {
-		log.Fatal("[main] Unable to retrieve directory from config")
-	}
-	dbfilename, ok := config.Get("dbfilename")
-	if !ok {
-		log.Fatal("[main] Unable to retrieve dbfilename from config")
-	}
 	rdbFilepath := filepath.Join(dir, dbfilename)
 	rdbFile, err := os.Open(rdbFilepath)
 	if !os.IsNotExist(err) {
@@ -40,11 +39,19 @@ func main() {
 		}
 	}
 
-	// Run listener.
-	port, ok := config.Get("port")
-	if !ok {
-		log.Fatal("[main] Unable to retrieve port from config")
+	// Initialize replication.
+	if replicaof != "" {
+		// replicaof is formatted like "<MASTER HOST> <MASTER PORT>"
+		// we want an address like "<MASTER HOST>:<MASTER PORT>"
+		address := strings.Replace(replicaof, " ", ":", 1)
+
+		replClient := handler.NewReplicationClient(address)
+		if err = replClient.Init(); err != nil {
+			log.Fatal("[main] Replication error:", err)
+		}
 	}
+
+	// Run listener.
 	addr := fmt.Sprintf("0.0.0.0:%s", port)
 
 	l, err := net.Listen("tcp", addr)
