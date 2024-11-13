@@ -88,13 +88,14 @@ type HandlerFunc = func(CommandArgs) Handler
 // Main command handler
 func Handle(command CommandArgs) CommandResponse {
 	handlers := map[string]HandlerFunc{
-		"CONFIG": newConfigHandler,
-		"ECHO":   newEchoHandler,
-		"GET":    newGetHandler,
-		"INFO":   newInfoHandler,
-		"KEYS":   newKeysHander,
-		"PING":   newPingHandler,
-		"SET":    newSetHandler,
+		"CONFIG":   newConfigHandler,
+		"ECHO":     newEchoHandler,
+		"GET":      newGetHandler,
+		"INFO":     newInfoHandler,
+		"KEYS":     newKeysHander,
+		"PING":     newPingHandler,
+		"SET":      newSetHandler,
+		"REPLCONF": newReplconfHandler,
 	}
 	cmd, args := command[0], command[1:]
 	handler, ok := handlers[strings.ToUpper(fmt.Sprint(cmd))]

@@ -50,6 +50,10 @@ func (r *respParser) Parse() ParseResponse {
 		}
 		return arr
 
+	case byte('+'):
+		// Simple string, data[1:] contains string
+		return data[1:]
+
 	case byte('$'):
 		// Bulk string, data[1:] contains length
 		// Length is unnecessary, as `r.scanner` is just going to read untiil
@@ -60,7 +64,7 @@ func (r *respParser) Parse() ParseResponse {
 		}
 		return r.scanner.Text()
 	default:
-		log.Printf("[RESPParser] Unexpected first byte: %v\n", data)
+		log.Printf("[RESPParser] Unexpected first byte: %#v\n", data)
 		return nil
 	}
 }
