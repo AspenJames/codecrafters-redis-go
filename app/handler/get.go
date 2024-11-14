@@ -12,7 +12,8 @@ type GetHandler = Handler
 // Get the value of key. If the key does not exist the special value nil is
 // returned. An error is returned if the value stored at key is not a string,
 // because GET only handles string values.
-func newGetHandler(args CommandArgs) GetHandler {
+func newGetHandler(ctx *Ctx) GetHandler {
+	args := ctx.GetArgs()
 	return &getHandler{cache.GetDefaultCache(), baseHandler{args: args}}
 }
 

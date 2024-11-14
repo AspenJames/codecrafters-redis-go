@@ -13,7 +13,8 @@ type KeysHander = Handler
 
 // KEYS pattern
 // Returns all keys matching pattern.
-func newKeysHander(args CommandArgs) KeysHander {
+func newKeysHander(ctx *Ctx) KeysHander {
+	args := ctx.GetArgs()
 	return &keysHander{cache.GetDefaultCache(), baseHandler{args: args}}
 }
 

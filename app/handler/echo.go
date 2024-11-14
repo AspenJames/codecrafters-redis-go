@@ -5,7 +5,8 @@ import "log"
 type EchoHandler = Handler
 
 // ECHO message -- returns message.
-func newEchoHandler(args CommandArgs) EchoHandler {
+func newEchoHandler(ctx *Ctx) EchoHandler {
+	args := ctx.GetArgs()
 	return &echoHandler{baseHandler{args: args}}
 }
 

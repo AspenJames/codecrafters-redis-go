@@ -16,12 +16,12 @@ type PsyncHandler = Handler
 // PSYNC replicationid offset
 // The PSYNC command is called by Redis replicas for initiating a replication
 // stream from the master. Just reply +FULLRESYNC <REPL_ID> 0\r\n for now.
-func newPsyncHandler(args CommandArgs) PsyncHandler {
-	return &psyncHandler{args, baseHandler{}}
+func newPsyncHandler(ctx *Ctx) PsyncHandler {
+	args := ctx.GetArgs()
+	return &psyncHandler{baseHandler{args: args}}
 }
 
 type psyncHandler struct {
-	args CommandArgs
 	baseHandler
 }
 

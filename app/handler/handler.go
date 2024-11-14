@@ -75,7 +75,7 @@ type defaultHandler struct {
 	baseHandler
 }
 
-func newDefaultHandler(_ CommandArgs) Handler {
+func newDefaultHandler(_ *Ctx) Handler {
 	return &defaultHandler{}
 }
 
@@ -83,26 +83,48 @@ func (d *defaultHandler) execute() CommandResponse {
 	return d.fmtErr("unrecognized command")
 }
 
-type HandlerFunc = func(CommandArgs) Handler
+type HandlerFunc = func(*Ctx) Handler
+
+var handlers = map[string]HandlerFunc{
+	"CONFIG":   newConfigHandler,
+	"ECHO":     newEchoHandler,
+	"GET":      newGetHandler,
+	"INFO":     newInfoHandler,
+	"KEYS":     newKeysHander,
+	"PING":     newPingHandler,
+	"SET":      newSetHandler,
+	"PSYNC":    newPsyncHandler,
+	"REPLCONF": newReplconfHandler,
+}
+
+var replicatingCmds = []string{
+	"SET",
+}
+
+func isReplicatingCmd(cmd string) bool {
+	for _, c := range replicatingCmds {
+		if c == cmd {
+			return true
+		}
+	}
+	return false
+}
 
 // Main command handler
-func Handle(command CommandArgs) CommandResponse {
-	handlers := map[string]HandlerFunc{
-		"CONFIG":   newConfigHandler,
-		"ECHO":     newEchoHandler,
-		"GET":      newGetHandler,
-		"INFO":     newInfoHandler,
-		"KEYS":     newKeysHander,
-		"PING":     newPingHandler,
-		"SET":      newSetHandler,
-		"PSYNC":    newPsyncHandler,
-		"REPLCONF": newReplconfHandler,
-	}
-	cmd, args := command[0], command[1:]
+func Handle(ctx *Ctx) CommandResponse {
+	cmd := ctx.GetCmd()
 	handler, ok := handlers[strings.ToUpper(fmt.Sprint(cmd))]
 	if !ok {
-		log.Printf("[Handle] Unexpected command: '%s' with args: '%v'\n", cmd, args)
-		return newDefaultHandler(args).execute()
+		log.Printf("[Handle] Unexpected command: %q\n", cmd)
+		return newDefaultHandler(ctx).execute()
 	}
-	return handler(args).execute()
+	if isReplicatingCmd(cmd) {
+		command := []string{cmd}
+		args := ctx.GetArgs()
+		for _, a := range args {
+			command = append(command, fmt.Sprint(a))
+		}
+		go notifyReplicas(command)
+	}
+	return handler(ctx).execute()
 }

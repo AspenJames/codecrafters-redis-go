@@ -12,7 +12,8 @@ type ConfigHandler = Handler
 // CONFIG GET parameter [parameter ...]
 // The CONFIG GET command is used to read the configuration parameters of a
 // running Redis server.
-func newConfigHandler(args CommandArgs) ConfigHandler {
+func newConfigHandler(ctx *Ctx) ConfigHandler {
+	args := ctx.GetArgs()
 	return &configHandler{baseHandler{args: args}}
 }
 

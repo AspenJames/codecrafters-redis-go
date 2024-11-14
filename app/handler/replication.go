@@ -9,6 +9,7 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/codecrafters-io/redis-starter-go/app/cache"
 	"github.com/codecrafters-io/redis-starter-go/app/config"
 	"github.com/codecrafters-io/redis-starter-go/app/parser"
 )
@@ -18,11 +19,12 @@ type ReplicationClient = Client
 // ReplicationClient initializes the replica following for a master database
 // accessible at `addr`, in the format "host:port".
 func NewReplicationClient(addr string) ReplicationClient {
-	return &replicationClient{addr, baseHandler{}}
+	return &replicationClient{addr, nil, baseHandler{}}
 }
 
 type replicationClient struct {
 	addr string
+	conn net.Conn
 	baseHandler
 }
 
@@ -32,13 +34,10 @@ func (r *replicationClient) Init() error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	r.conn = conn
 
 	respParser := parser.NewRESPParser(bufio.NewScanner(conn))
-	// rdbParser := parser.NewRDBParser(conn)
 	readSingleByte := func() (byte, error) {
-		// timeout := time.Now().Add(time.Second * 1)
-		// conn.SetReadDeadline(timeout)
 		buf := make([]byte, 1)
 		if _, err := conn.Read(buf); err != nil {
 			return byte(0), err
@@ -98,8 +97,6 @@ func (r *replicationClient) Init() error {
 			log.Println("[ReplicationClient] EOF read; no RDB data sent")
 			return nil
 		}
-		// TODO something better
-		log.Println("[0] ", err)
 		return err
 	}
 	// RDB data is encoded as '$<size>\r\n<content>'.
@@ -111,7 +108,6 @@ func (r *replicationClient) Init() error {
 	for {
 		b, err = readSingleByte()
 		if err != nil {
-			log.Println("[1] ", err)
 			return err
 		}
 		if b == byte('\r') {
@@ -124,15 +120,33 @@ func (r *replicationClient) Init() error {
 	// Parse size; read RDB data.
 	size, err := strconv.Atoi(string(sizeBytes))
 	if err != nil {
-		log.Println("[2] ", err)
 		return err
 	}
 	rdbBytes := make([]byte, size)
 	if _, err := conn.Read(rdbBytes); err != nil {
-		log.Println("[3] ", err)
 		return err
 	}
 	rdbData := parser.NewRDBParser(bytes.NewBuffer(rdbBytes)).Parse()
-	log.Printf("RDB Data: %#v\n", rdbData)
+	// Clear local data and load rdbData
+	cache.GetDefaultCache().LoadRDB(rdbData)
 	return nil
+}
+
+func (r *replicationClient) Handle() {
+	defer r.conn.Close()
+	scanner := bufio.NewScanner(r.conn)
+
+	for {
+		cmdCtx := &Ctx{}
+		parsed := parser.NewRESPParser(scanner).Parse()
+		// Assert `parsed` is of form CommandArgs
+		command, ok := parsed.(CommandArgs)
+		if !ok || len(command) == 0 {
+			break
+		}
+		cmdCtx.SetCmd(command[0].(string))
+		cmdCtx.SetArgs(command[1:])
+		// We don't write responses in replication.
+		_ = Handle(cmdCtx)
+	}
 }

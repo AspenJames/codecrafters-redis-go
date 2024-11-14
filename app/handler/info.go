@@ -13,7 +13,8 @@ type InfoHandler = Handler
 // INFO [section [section ...]]
 // The INFO command returns information and statistics about the server in a
 // format that is simple to parse by computers and easy to read by humans.
-func newInfoHandler(args CommandArgs) InfoHandler {
+func newInfoHandler(ctx *Ctx) InfoHandler {
+	args := ctx.GetArgs()
 	return &infoHandler{baseHandler{args: args}}
 }
 

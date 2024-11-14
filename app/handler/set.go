@@ -21,7 +21,8 @@ type SetHandler = Handler
 // * PX milliseconds -- Set the specified expire time, in milliseconds (a positive integer).
 // * NX -- Only set the key if it does not already exist.
 // * XX -- Only set the key if it already exists.
-func newSetHandler(args CommandArgs) SetHandler {
+func newSetHandler(ctx *Ctx) SetHandler {
+	args := ctx.GetArgs()
 	return &setHandler{cache.GetDefaultCache(), baseHandler{args: args}}
 }
 

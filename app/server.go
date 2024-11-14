@@ -46,9 +46,11 @@ func main() {
 		address := strings.Replace(replicaof, " ", ":", 1)
 
 		replClient := handler.NewReplicationClient(address)
-		if err = replClient.Init(); err != nil {
+		err := replClient.Init()
+		if err != nil {
 			log.Fatal("[main] Replication error:", err)
 		}
+		go replClient.Handle()
 	}
 
 	// Run listener.
@@ -73,16 +75,25 @@ func handleConn(conn net.Conn) {
 	defer conn.Close()
 	scanner := bufio.NewScanner(conn)
 
+	// Get the clientAddr from conn, with the port section removed.
+	split := strings.Split(conn.LocalAddr().String(), ":")
+	clientAddr := strings.Join(split[:len(split)-1], ":")
+
 	// The data we receive is a command in the form of an array, where the first
 	// element is the command and the rest are optional args.
 	for {
+		cmdCtx := &handler.Ctx{}
 		parsed := parser.NewRESPParser(scanner).Parse()
 		// Assert `parsed` is of form CommandArgs
 		command, ok := parsed.(handler.CommandArgs)
-		if !ok {
+		if !ok || len(command) == 0 {
 			break
 		}
-		for _, resp := range handler.Handle(command) {
+		cmdCtx.SetCmd(command[0].(string))
+		cmdCtx.SetArgs(command[1:])
+		cmdCtx.SetClientAddr(clientAddr)
+		cmdCtx.SetConn(conn)
+		for _, resp := range handler.Handle(cmdCtx) {
 			// Without _something_ here reading resp though some sort of
 			// formatting, the RDB data from PSYNC won't actually write out.
 			// ¯\_(ツ)_/¯
